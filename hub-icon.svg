@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff7a4d"/>
+      <stop offset="1" stop-color="#ff4d8d"/>
+    </linearGradient>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#ffe9df"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- hub centrale + nodi: rappresenta l'aggregatore di app -->
+  <g fill="url(#tile)">
+    <rect x="120" y="120" width="120" height="120" rx="26"/>
+    <rect x="272" y="120" width="120" height="120" rx="26"/>
+    <rect x="120" y="272" width="120" height="120" rx="26"/>
+    <rect x="272" y="272" width="120" height="120" rx="26"/>
+  </g>
+  <circle cx="256" cy="256" r="34" fill="#13161c"/>
+  <g stroke="#13161c" stroke-width="14" stroke-linecap="round">
+    <line x1="256" y1="256" x2="180" y2="180"/>
+    <line x1="256" y1="256" x2="332" y2="180"/>
+    <line x1="256" y1="256" x2="180" y2="332"/>
+    <line x1="256" y1="256" x2="332" y2="332"/>
+  </g>
+</svg>
