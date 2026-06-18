@@ -1,7 +1,7 @@
 <!-- ============================================================
      WEB APP HUB — index.html
-     VERSIONE INTERNA: 1.5.0
-     - EK DOCS / Doculingua: bottone apri cartella di rete UNC
+     VERSIONE INTERNA: 1.7.0
+     - Card senza repo: bottone App a piena larghezza, niente "no repo"
      - Card semplificate: solo nome + bottoni (App / GitHub)
      - Link reali delle app inseriti
      - EK DOCS / Doculingua con sito reale + beta EK DOCS
@@ -46,6 +46,9 @@
   .brand .logo{width:54px;height:54px;border-radius:14px;flex:0 0 auto;box-shadow:var(--shadow)}
   .eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--acc);font-weight:700}
   h1{font-size:28px;font-weight:800;margin-top:2px;letter-spacing:-.02em}
+  .ver-badge{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;
+    letter-spacing:.05em;color:var(--txt-dim);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:20px;padding:2px 9px}
   .head-actions{display:flex;gap:8px;flex-wrap:wrap}
   .ghost{
     background:var(--panel);color:var(--txt);border:1px solid var(--line);
@@ -149,6 +152,7 @@
       <div>
         <div class="eyebrow">Web App Hub</div>
         <h1>Le mie app</h1>
+        <span id="verBadge" class="ver-badge"></span>
       </div>
     </div>
     <div class="head-actions">
@@ -169,7 +173,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const VERSION="1.5.0";
+const VERSION="1.7.0";
 
 const defaultApps=[
   {name:"EK DOCS",icon:"EK",color:"#5b8def",stato:"ok",kind:"web",url:"https://ekdocs.edilkamin.com",beta:"https://ekdocs.edilkamin.com/index-test.html",folder:"\\\\LAI-SRV-009-BIS\\ekdocs",git:""},
@@ -196,7 +200,9 @@ async function load(){
   });
   if(JSON.stringify(apps)!==before) await save();
   try{ const t=await window.storage.get('hub:theme'); if(t&&t.value) theme=t.value; }catch(e){}
-  applyTheme(); render();
+  applyTheme();
+  document.getElementById('verBadge').textContent='v'+VERSION;
+  render();
 }
 async function save(){ try{ await window.storage.set('hub:apps',JSON.stringify(apps)); }catch(e){} }
 async function saveTheme(){ try{ await window.storage.set('hub:theme',theme); }catch(e){} }
@@ -212,7 +218,7 @@ function cardView(a,i){
     : `<a class="btn btn-open" aria-disabled="true">no app</a>`;
   const gitBtn = a.git
     ? `<a class="btn btn-git" href="${a.git}" target="_blank" rel="noopener">GitHub ↗</a>`
-    : `<a class="btn btn-git" aria-disabled="true">no repo</a>`;
+    : "";
   const betaBtn = a.beta
     ? `<a class="btn btn-beta" href="${a.beta}" target="_blank" rel="noopener">Beta ↗</a>` : "";
   const folderBtn = a.folder
