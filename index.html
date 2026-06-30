@@ -1,7 +1,7 @@
 <!-- ============================================================
      WEB APP HUB — index.html
-     VERSIONE INTERNA: 1.7.0
-     - Card senza repo: bottone App a piena larghezza, niente "no repo"
+     VERSIONE INTERNA: 1.8.0
+     - Aggiunta nuova app + eliminazione card (in modalità Modifica)
      - Card semplificate: solo nome + bottoni (App / GitHub)
      - Link reali delle app inseriti
      - EK DOCS / Doculingua con sito reale + beta EK DOCS
@@ -90,6 +90,7 @@
   .btn-beta{background:transparent;color:var(--warn);border:1px solid var(--warn)}
   .btn-folder{background:transparent;color:var(--txt-dim);border:1px solid var(--line)}
   .btn-folder:hover{color:var(--acc);border-color:var(--acc)}
+  .btn-del{background:transparent;color:#e03131;border:1px solid #e03131;flex:0 0 auto;padding:9px 12px}
   .btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
 
   .edit-btn{position:absolute;top:10px;right:10px;background:var(--panel-2);
@@ -159,6 +160,7 @@
       <a class="ghost" href="https://github.com/marcotorquatoek/allapp/upload/main" target="_blank" rel="noopener" title="Push nuova versione dell'hub">⤴ GitHub Hub</a>
       <button class="ghost" id="themeToggle">🌙 Scuro</button>
       <button class="ghost" id="editToggle">✎ Modifica</button>
+      <button class="ghost" id="addBtn" style="display:none">＋ Nuova app</button>
     </div>
   </header>
 
@@ -173,7 +175,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const VERSION="1.7.0";
+const VERSION="1.8.0";
 
 const defaultApps=[
   {name:"EK DOCS",icon:"EK",color:"#5b8def",stato:"ok",kind:"web",url:"https://ekdocs.edilkamin.com",beta:"https://ekdocs.edilkamin.com/index-test.html",folder:"\\\\LAI-SRV-009-BIS\\ekdocs",git:""},
@@ -256,6 +258,7 @@ function cardEdit(a,i){
       <div class="save-row">
         <button class="btn btn-open" onclick="saveCard(${i})">Salva</button>
         <button class="btn btn-git" onclick="cancelEdit()">Annulla</button>
+        <button class="btn btn-del" onclick="deleteCard(${i})">Elimina</button>
       </div>
     </div>`;
 }
@@ -274,6 +277,15 @@ function render(){
 
 window.openEditor=(i)=>{ editIndex=i; render(); };
 window.cancelEdit=()=>{ editIndex=-1; render(); };
+window.deleteCard=async(i)=>{
+  if(!confirm('Eliminare "'+(apps[i].name||'questa app')+'"?')) return;
+  apps.splice(i,1); editIndex=-1; await save(); render(); toast('App eliminata');
+};
+window.addCard=async()=>{
+  apps.push({name:"Nuova app",icon:"NEW",color:"#5b8def",stato:"",kind:"web",url:"",beta:"",folder:"",git:""});
+  editIndex=apps.length-1; await save(); render();
+  document.querySelectorAll('.card')[editIndex].scrollIntoView({behavior:'smooth',block:'center'});
+};
 window.saveCard=async(i)=>{
   const g=id=>document.getElementById(id+'-'+i).value;
   const prev=apps[i];
@@ -286,8 +298,10 @@ document.getElementById('editToggle').addEventListener('click',(e)=>{
   editing=!editing; editIndex=-1;
   e.target.classList.toggle('active',editing);
   e.target.textContent=editing?'✓ Fine':'✎ Modifica';
+  document.getElementById('addBtn').style.display=editing?'inline-block':'none';
   render();
 });
+document.getElementById('addBtn').addEventListener('click',()=>window.addCard());
 document.getElementById('themeToggle').addEventListener('click',()=>{
   theme=theme==='dark'?'light':'dark'; applyTheme(); saveTheme();
 });
