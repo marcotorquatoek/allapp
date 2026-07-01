@@ -1,7 +1,7 @@
 <!-- ============================================================
      WEB APP HUB — index.html
-     VERSIONE INTERNA: 1.8.0
-     - Aggiunta nuova app + eliminazione card (in modalità Modifica)
+     VERSIONE INTERNA: 1.8.1
+     - Aggiunta nuova app + eliminazione card + ripristino default
      - Card semplificate: solo nome + bottoni (App / GitHub)
      - Link reali delle app inseriti
      - EK DOCS / Doculingua con sito reale + beta EK DOCS
@@ -161,6 +161,7 @@
       <button class="ghost" id="themeToggle">🌙 Scuro</button>
       <button class="ghost" id="editToggle">✎ Modifica</button>
       <button class="ghost" id="addBtn" style="display:none">＋ Nuova app</button>
+      <button class="ghost" id="resetBtn" style="display:none">↺ Ripristina</button>
     </div>
   </header>
 
@@ -175,7 +176,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const VERSION="1.8.0";
+const VERSION="1.8.1";
 
 const defaultApps=[
   {name:"EK DOCS",icon:"EK",color:"#5b8def",stato:"ok",kind:"web",url:"https://ekdocs.edilkamin.com",beta:"https://ekdocs.edilkamin.com/index-test.html",folder:"\\\\LAI-SRV-009-BIS\\ekdocs",git:""},
@@ -299,9 +300,14 @@ document.getElementById('editToggle').addEventListener('click',(e)=>{
   e.target.classList.toggle('active',editing);
   e.target.textContent=editing?'✓ Fine':'✎ Modifica';
   document.getElementById('addBtn').style.display=editing?'inline-block':'none';
+  document.getElementById('resetBtn').style.display=editing?'inline-block':'none';
   render();
 });
 document.getElementById('addBtn').addEventListener('click',()=>window.addCard());
+document.getElementById('resetBtn').addEventListener('click',async()=>{
+  if(!confirm('Ripristinare la lista di app predefinita? Le modifiche salvate andranno perse.')) return;
+  apps=structuredClone(defaultApps); editIndex=-1; await save(); render(); toast('Lista ripristinata');
+});
 document.getElementById('themeToggle').addEventListener('click',()=>{
   theme=theme==='dark'?'light':'dark'; applyTheme(); saveTheme();
 });
