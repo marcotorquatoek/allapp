@@ -1,14 +1,10 @@
 <!-- ============================================================
      WEB APP HUB — index.html
-     VERSIONE INTERNA: 1.8.2
-     - Sigla app generata dalle iniziali del nome (no piu NEW)
-     - Card semplificate: solo nome + bottoni (App / GitHub)
-     - Link reali delle app inseriti
-     - EK DOCS / Doculingua con sito reale + beta EK DOCS
-     - Link Supabase SQL per i due progetti
-     - Due colonne anche su mobile
-     - Fix logo header (SVG inline, sempre visibile)
-     - Tema chiaro (default) / scuro
+     VERSIONE INTERNA: 2.0.0
+     - Persistenza su Supabase (progetto marcoapps)
+       tabelle: hub_apps, hub_settings  +  fallback localStorage
+     - Aggiunta/eliminazione app, editor, tema chiaro/scuro
+     - Sigla generata dalle iniziali del nome
      ============================================================ -->
 <!DOCTYPE html>
 <html lang="it">
@@ -49,15 +45,16 @@
   .ver-badge{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;
     letter-spacing:.05em;color:var(--txt-dim);background:var(--panel-2);
     border:1px solid var(--line);border-radius:20px;padding:2px 9px}
+  .ver-badge .sync{margin-left:6px}
   .head-actions{display:flex;gap:8px;flex-wrap:wrap}
   .ghost{
     background:var(--panel);color:var(--txt);border:1px solid var(--line);
     padding:9px 14px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:var(--shadow);
+    text-decoration:none;display:inline-block;
   }
   .ghost:hover{border-color:var(--acc)}
   .ghost.active{background:var(--acc);color:#fff;border-color:var(--acc)}
 
-  /* link Supabase */
   .supabar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 20px}
   .supa-link{display:flex;align-items:center;gap:8px;text-decoration:none;
     background:var(--panel);border:1px solid var(--line);border-radius:10px;
@@ -73,8 +70,6 @@
     transition:transform .15s ease,border-color .15s ease;
   }
   .card:hover{transform:translateY(-3px);border-color:var(--acc)}
-  .card.test{border-style:dashed;border-color:var(--warn)}
-  .card.self{border-color:var(--acc-2)}
 
   .top{display:flex;align-items:center;gap:11px}
   .icon{width:42px;height:42px;border-radius:11px;flex:0 0 auto;display:flex;
@@ -111,10 +106,10 @@
   footer{margin-top:26px;color:var(--txt-dim);font-size:12px;text-align:center}
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
     background:var(--acc-2);color:#fff;padding:10px 18px;border-radius:10px;
-    font-size:13px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none}
+    font-size:13px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none;z-index:9}
   .toast.show{opacity:1}
+  .toast.err{background:#e03131}
 
-  /* MOBILE: due colonne mantenute, testo/padding ridotti */
   @media(max-width:560px){
     body{padding:20px 10px}
     h1{font-size:22px}
@@ -130,24 +125,18 @@
 <div class="wrap">
   <header>
     <div class="brand">
-      <!-- logo SVG inline: sempre visibile, nessun file esterno richiesto -->
       <svg class="logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-label="App Hub">
-        <defs>
-          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#ff7a4d"/><stop offset="1" stop-color="#ff4d8d"/>
-          </linearGradient>
-        </defs>
+        <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#ff7a4d"/><stop offset="1" stop-color="#ff4d8d"/></linearGradient></defs>
         <rect width="512" height="512" rx="112" fill="url(#bg)"/>
         <g fill="#fff">
           <rect x="120" y="120" width="120" height="120" rx="26"/>
           <rect x="272" y="120" width="120" height="120" rx="26"/>
           <rect x="120" y="272" width="120" height="120" rx="26"/>
-          <rect x="272" y="272" width="120" height="120" rx="26"/>
-        </g>
+          <rect x="272" y="272" width="120" height="120" rx="26"/></g>
         <g stroke="#13161c" stroke-width="14" stroke-linecap="round">
           <line x1="256" y1="256" x2="180" y2="180"/><line x1="256" y1="256" x2="332" y2="180"/>
-          <line x1="256" y1="256" x2="180" y2="332"/><line x1="256" y1="256" x2="332" y2="332"/>
-        </g>
+          <line x1="256" y1="256" x2="180" y2="332"/><line x1="256" y1="256" x2="332" y2="332"/></g>
         <circle cx="256" cy="256" r="34" fill="#13161c"/>
       </svg>
       <div>
@@ -161,7 +150,6 @@
       <button class="ghost" id="themeToggle">🌙 Scuro</button>
       <button class="ghost" id="editToggle">✎ Modifica</button>
       <button class="ghost" id="addBtn" style="display:none">＋ Nuova app</button>
-      <button class="ghost" id="resetBtn" style="display:none">↺ Ripristina</button>
     </div>
   </header>
 
@@ -171,63 +159,128 @@
   </div>
 
   <div class="grid" id="grid"></div>
-  <footer id="foot">Hub v1.3.0</footer>
+  <footer id="foot">Hub</footer>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
-const VERSION="1.8.2";
+const VERSION="2.0.0";
 
+/* ---------- Supabase (progetto marcoapps) ---------- */
+const SB_URL="https://zdwzombpaixkcryfpkxg.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpkd3pvbWJwYWl4a2NyeWZwa3hnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MzczMTAsImV4cCI6MjA5NzMxMzMxMH0.ttAPvk-kV_BWC8RH43eVNXsN6HglLIQhp0rieWwjGPw";
+const REST=SB_URL+"/rest/v1";
+const sbHead={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"};
+let sbOnline=false;
+
+async function sbSelectApps(){
+  const r=await fetch(REST+"/hub_apps?select=*&order=position.asc",{headers:sbHead});
+  if(!r.ok) throw new Error("select "+r.status);
+  return await r.json();
+}
+async function sbReplaceApps(list){
+  // sostituzione completa: cancella tutto e reinserisce con position ordinata
+  const del=await fetch(REST+"/hub_apps?id=gt.0",{method:"DELETE",headers:sbHead});
+  if(!del.ok) throw new Error("delete "+del.status);
+  const rows=list.map((a,i)=>({position:i,name:a.name||'',icon:a.icon||'',color:a.color||'#5b8def',
+    stato:a.stato||'',kind:a.kind||'web',url:a.url||'',beta:a.beta||'',folder:a.folder||'',git:a.git||''}));
+  if(rows.length){
+    const ins=await fetch(REST+"/hub_apps",{method:"POST",headers:{...sbHead,Prefer:"return=minimal"},body:JSON.stringify(rows)});
+    if(!ins.ok) throw new Error("insert "+ins.status);
+  }
+}
+async function sbGetSetting(k){
+  const r=await fetch(REST+"/hub_settings?key=eq."+encodeURIComponent(k)+"&select=value",{headers:sbHead});
+  if(!r.ok) return null;
+  const j=await r.json(); return j[0]?j[0].value:null;
+}
+async function sbSetSetting(k,v){
+  await fetch(REST+"/hub_settings",{method:"POST",
+    headers:{...sbHead,Prefer:"resolution=merge-duplicates,return=minimal"},
+    body:JSON.stringify([{key:k,value:v}])});
+}
+
+/* ---------- Dati default ---------- */
 const defaultApps=[
   {name:"EK DOCS",icon:"EK",color:"#5b8def",stato:"ok",kind:"web",url:"https://ekdocs.edilkamin.com",beta:"https://ekdocs.edilkamin.com/index-test.html",folder:"\\\\LAI-SRV-009-BIS\\ekdocs",git:""},
   {name:"Doculingua",icon:"DL",color:"#9b7bff",stato:"ok",kind:"web",url:"https://ekdocs.edilkamin.com/doculingua.html",beta:"",folder:"\\\\LAI-SRV-009-BIS\\ekdocs",git:""},
-  {name:"ConcertiLive",icon:"CL",color:"#ff6b6b",stato:"",kind:"web",url:"https://marcotorquatoek.github.io/concertilive",beta:"",git:"https://github.com/marcotorquatoek/concertilive/upload/main"},
-  {name:"Budget/Debiti",icon:"BD",color:"#4dd0a7",stato:"",kind:"web",url:"https://marcotorquatoek.github.io/debiti",beta:"",git:"https://github.com/marcotorquatoek/debiti/upload/main"},
-  {name:"LyricStudio",icon:"LS",color:"#ffa94d",stato:"",kind:"web",url:"https://marcotorquatoek.github.io/lyricstudio",beta:"",git:"https://github.com/marcotorquatoek/lyricstudio/upload/main"},
-  {name:"AI Vault",icon:"AI",color:"#22b8cf",stato:"",kind:"web",url:"https://marcotorquatoek.github.io/aivault",beta:"",git:"https://github.com/marcotorquatoek/aivault/upload/main"},
-  {name:"ToDoApp",icon:"TD",color:"#f783ac",stato:"",kind:"web",url:"https://marcotorquatoek.github.io/todolist",beta:"",git:"https://github.com/marcotorquatoek/todolist/upload/main"},
-  {name:"FlexiFly",icon:"FF",color:"#74c0fc",stato:"",kind:"web",url:"https://marcotorquatoek.github.io/flexifly",beta:"",git:"https://github.com/marcotorquatoek/flexifly/upload/main"}
+  {name:"ConcertiLive",icon:"CL",color:"#ff6b6b",stato:"",kind:"web",url:"https://marcotorquatoek.github.io/concertilive",beta:"",folder:"",git:"https://github.com/marcotorquatoek/concertilive/upload/main"},
+  {name:"Budget/Debiti",icon:"BD",color:"#4dd0a7",stato:"",kind:"web",url:"https://marcotorquatoek.github.io/debiti",beta:"",folder:"",git:"https://github.com/marcotorquatoek/debiti/upload/main"},
+  {name:"LyricStudio",icon:"LS",color:"#ffa94d",stato:"",kind:"web",url:"https://marcotorquatoek.github.io/lyricstudio",beta:"",folder:"",git:"https://github.com/marcotorquatoek/lyricstudio/upload/main"},
+  {name:"AI Vault",icon:"AI",color:"#22b8cf",stato:"",kind:"web",url:"https://marcotorquatoek.github.io/aivault",beta:"",folder:"",git:"https://github.com/marcotorquatoek/aivault/upload/main"},
+  {name:"ToDoApp",icon:"TD",color:"#f783ac",stato:"",kind:"web",url:"https://marcotorquatoek.github.io/todolist",beta:"",folder:"",git:"https://github.com/marcotorquatoek/todolist/upload/main"},
+  {name:"FlexiFly",icon:"FF",color:"#74c0fc",stato:"",kind:"web",url:"https://marcotorquatoek.github.io/flexifly",beta:"",folder:"",git:"https://github.com/marcotorquatoek/flexifly/upload/main"}
 ];
 
 let apps=[], editing=false, editIndex=-1, theme="light";
 const grid=document.getElementById('grid'), foot=document.getElementById('foot'), toastEl=document.getElementById('toast');
 
-async function load(){
-  try{ const r=await window.storage.get('hub:apps'); apps=r&&r.value?JSON.parse(r.value):structuredClone(defaultApps); }
-  catch(e){ apps=structuredClone(defaultApps); }
-  // migrazione: rimuove vecchie card self/test e aggiunge cartella di rete a EK DOCS/Doculingua
-  const before=JSON.stringify(apps);
-  apps=apps.filter(a=>a.kind!=='self' && a.stato!=='test');
-  apps.forEach(a=>{
-    if((a.name==='EK DOCS'||a.name==='Doculingua') && !a.folder) a.folder="\\\\LAI-SRV-009-BIS\\ekdocs";
-    if(!a.icon || a.icon==='NEW') a.icon=initialsFrom(a.name);
-  });
-  if(JSON.stringify(apps)!==before) await save();
-  try{ const t=await window.storage.get('hub:theme'); if(t&&t.value) theme=t.value; }catch(e){}
-  applyTheme();
-  document.getElementById('verBadge').textContent='v'+VERSION;
-  render();
+function initialsFrom(name){
+  const w=(name||'').replace(/[^\p{L}\p{N} ]/gu,' ').trim().split(/\s+/).filter(Boolean);
+  if(!w.length) return "APP";
+  if(w.length===1) return w[0].slice(0,2).toUpperCase();
+  return (w[0][0]+w[1][0]).toUpperCase();
 }
-async function save(){ try{ await window.storage.set('hub:apps',JSON.stringify(apps)); }catch(e){} }
-async function saveTheme(){ try{ await window.storage.set('hub:theme',theme); }catch(e){} }
+function toast(m,err){ toastEl.textContent=m; toastEl.classList.toggle('err',!!err); toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'),1900); }
+function setBadge(){
+  const dot = sbOnline ? '🟢 Supabase' : '🟠 locale';
+  document.getElementById('verBadge').innerHTML='v'+VERSION+'<span class="sync">'+dot+'</span>';
+}
+
+/* ---------- Persistenza: Supabase con fallback localStorage ---------- */
+async function loadApps(){
+  try{
+    const rows=await sbSelectApps(); sbOnline=true;
+    if(rows.length) return rows;
+    // tabella vuota: seed coi default
+    await sbReplaceApps(defaultApps);
+    return structuredClone(defaultApps);
+  }catch(e){
+    sbOnline=false;
+    try{ const v=localStorage.getItem('hub:apps'); if(v) return JSON.parse(v); }catch(_){}
+    return structuredClone(defaultApps);
+  }
+}
+async function saveApps(){
+  localStorage.setItem('hub:apps',JSON.stringify(apps)); // cache locale sempre
+  if(sbOnline){
+    try{ await sbReplaceApps(apps); }catch(e){ toast('Errore salvataggio Supabase',true); }
+  }
+}
+async function loadTheme(){
+  if(sbOnline){ try{ const t=await sbGetSetting('theme'); if(t) return t; }catch(_){} }
+  return localStorage.getItem('hub:theme')||'light';
+}
+async function saveTheme(){
+  localStorage.setItem('hub:theme',theme);
+  if(sbOnline){ try{ await sbSetSetting('theme',theme); }catch(_){} }
+}
+
 function applyTheme(){
   document.documentElement.setAttribute('data-theme',theme==='dark'?'dark':'light');
   document.getElementById('themeToggle').textContent=theme==='dark'?'☀ Chiaro':'🌙 Scuro';
 }
-function toast(m){ toastEl.textContent=m; toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'),1600); }
 
+async function init(){
+  apps=await loadApps();
+  // normalizzazioni
+  apps.forEach(a=>{ if(!a.icon||a.icon==='NEW') a.icon=initialsFrom(a.name); });
+  theme=await loadTheme();
+  applyTheme(); setBadge(); render();
+}
+
+/* ---------- Render ---------- */
 function cardView(a,i){
   const openBtn = a.url
     ? `<a class="btn btn-open" href="${a.url}" target="_blank" rel="noopener">App ↗</a>`
     : `<a class="btn btn-open" aria-disabled="true">no app</a>`;
   const gitBtn = a.git
-    ? `<a class="btn btn-git" href="${a.git}" target="_blank" rel="noopener">GitHub ↗</a>`
-    : "";
+    ? `<a class="btn btn-git" href="${a.git}" target="_blank" rel="noopener">GitHub ↗</a>` : "";
   const betaBtn = a.beta
     ? `<a class="btn btn-beta" href="${a.beta}" target="_blank" rel="noopener">Beta ↗</a>` : "";
   const folderBtn = a.folder
     ? `<a class="btn btn-folder" href="file:///${a.folder.replace(/\\/g,'/')}" title="${a.folder}">📁 Cartella</a>` : "";
-  const secondRow = (betaBtn||folderBtn) ? `<div class="actions">${betaBtn}${folderBtn}</div>` : "";
+  const secondRow=(betaBtn||folderBtn)?`<div class="actions">${betaBtn}${folderBtn}</div>`:"";
   return `
     <button class="edit-btn" onclick="openEditor(${i})">✎</button>
     <div class="top">
@@ -237,21 +290,15 @@ function cardView(a,i){
     <div class="actions">${openBtn}${gitBtn}</div>
     ${secondRow}`;
 }
-
 function cardEdit(a,i){
   return `
     <div class="form">
       <div class="form-row">
-        <div><label>Nome</label><input id="f-name-${i}" value="${a.name||''}"></div>
+        <div><label>Nome</label><input id="f-name-${i}" value="${(a.name||'').replace(/"/g,'&quot;')}"></div>
         <div><label>Sigla (auto)</label><input id="f-icon-${i}" value="${a.icon||''}" maxlength="3" placeholder="da nome"></div>
       </div>
       <div class="form-row">
         <div><label>Colore</label><input id="f-color-${i}" type="color" value="${a.color||'#5b8def'}"></div>
-        <div><label>Stato</label>
-          <select id="f-stato-${i}">
-            <option value="" ${a.stato===''?'selected':''}>—</option>
-            <option value="test" ${a.stato==='test'?'selected':''}>Test</option>
-          </select></div>
       </div>
       <label>URL app</label><input id="f-url-${i}" value="${(a.url||'').replace(/"/g,'&quot;')}" placeholder="https://...">
       <label>URL beta (opzionale)</label><input id="f-beta-${i}" value="${(a.beta||'').replace(/"/g,'&quot;')}" placeholder="https://...">
@@ -264,44 +311,35 @@ function cardEdit(a,i){
       </div>
     </div>`;
 }
-
 function render(){
   grid.innerHTML='';
   apps.forEach((a,i)=>{
     const c=document.createElement('div');
-    c.className="card"+(a.stato==="test"?" test":"")+(a.kind==="self"?" self":"");
+    c.className="card";
     c.innerHTML=(editing&&editIndex===i)?cardEdit(a,i):cardView(a,i);
     grid.appendChild(c);
   });
   document.body.classList.toggle('editing',editing);
-  foot.textContent=`Hub v${VERSION} · ${apps.length} app`;
+  foot.textContent=`Hub v${VERSION} · ${apps.length} app · ${sbOnline?'sincronizzato su Supabase':'solo locale (offline)'}`;
 }
 
 window.openEditor=(i)=>{ editIndex=i; render(); };
 window.cancelEdit=()=>{ editIndex=-1; render(); };
 window.deleteCard=async(i)=>{
   if(!confirm('Eliminare "'+(apps[i].name||'questa app')+'"?')) return;
-  apps.splice(i,1); editIndex=-1; await save(); render(); toast('App eliminata');
+  apps.splice(i,1); editIndex=-1; render(); await saveApps(); toast('App eliminata');
 };
 window.addCard=async()=>{
   apps.push({name:"Nuova app",icon:"",color:"#5b8def",stato:"",kind:"web",url:"",beta:"",folder:"",git:""});
-  editIndex=apps.length-1; await save(); render();
-  document.querySelectorAll('.card')[editIndex].scrollIntoView({behavior:'smooth',block:'center'});
+  editIndex=apps.length-1; render();
+  const cards=document.querySelectorAll('.card'); cards[cards.length-1].scrollIntoView({behavior:'smooth',block:'center'});
 };
-function initialsFrom(name){
-  const words=(name||'').replace(/[^\p{L}\p{N} ]/gu,' ').trim().split(/\s+/).filter(Boolean);
-  if(!words.length) return "APP";
-  if(words.length===1) return words[0].slice(0,2).toUpperCase();
-  return (words[0][0]+words[1][0]).toUpperCase();
-}
 window.saveCard=async(i)=>{
   const g=id=>document.getElementById(id+'-'+i).value;
-  const prev=apps[i];
-  let icon=g('f-icon').trim();
-  if(!icon) icon=initialsFrom(g('f-name'));
-  apps[i]={name:g('f-name'),icon:icon,color:g('f-color'),stato:g('f-stato'),
-    kind:prev.kind||'web',url:g('f-url'),beta:g('f-beta'),folder:g('f-folder'),git:g('f-git')};
-  editIndex=-1; await save(); render(); toast('Scheda salvata');
+  let icon=g('f-icon').trim(); if(!icon) icon=initialsFrom(g('f-name'));
+  apps[i]={name:g('f-name'),icon:icon,color:g('f-color'),stato:'',kind:apps[i].kind||'web',
+    url:g('f-url'),beta:g('f-beta'),folder:g('f-folder'),git:g('f-git')};
+  editIndex=-1; render(); await saveApps(); toast('Scheda salvata');
 };
 
 document.getElementById('editToggle').addEventListener('click',(e)=>{
@@ -309,19 +347,14 @@ document.getElementById('editToggle').addEventListener('click',(e)=>{
   e.target.classList.toggle('active',editing);
   e.target.textContent=editing?'✓ Fine':'✎ Modifica';
   document.getElementById('addBtn').style.display=editing?'inline-block':'none';
-  document.getElementById('resetBtn').style.display=editing?'inline-block':'none';
   render();
 });
 document.getElementById('addBtn').addEventListener('click',()=>window.addCard());
-document.getElementById('resetBtn').addEventListener('click',async()=>{
-  if(!confirm('Ripristinare la lista di app predefinita? Le modifiche salvate andranno perse.')) return;
-  apps=structuredClone(defaultApps); editIndex=-1; await save(); render(); toast('Lista ripristinata');
-});
 document.getElementById('themeToggle').addEventListener('click',()=>{
   theme=theme==='dark'?'light':'dark'; applyTheme(); saveTheme();
 });
 
-load();
+init();
 </script>
 </body>
 </html>
