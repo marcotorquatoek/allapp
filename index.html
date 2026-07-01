@@ -1,7 +1,7 @@
 <!-- ============================================================
      WEB APP HUB — index.html
-     VERSIONE INTERNA: 1.8.1
-     - Aggiunta nuova app + eliminazione card + ripristino default
+     VERSIONE INTERNA: 1.8.2
+     - Sigla app generata dalle iniziali del nome (no piu NEW)
      - Card semplificate: solo nome + bottoni (App / GitHub)
      - Link reali delle app inseriti
      - EK DOCS / Doculingua con sito reale + beta EK DOCS
@@ -176,7 +176,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const VERSION="1.8.1";
+const VERSION="1.8.2";
 
 const defaultApps=[
   {name:"EK DOCS",icon:"EK",color:"#5b8def",stato:"ok",kind:"web",url:"https://ekdocs.edilkamin.com",beta:"https://ekdocs.edilkamin.com/index-test.html",folder:"\\\\LAI-SRV-009-BIS\\ekdocs",git:""},
@@ -200,6 +200,7 @@ async function load(){
   apps=apps.filter(a=>a.kind!=='self' && a.stato!=='test');
   apps.forEach(a=>{
     if((a.name==='EK DOCS'||a.name==='Doculingua') && !a.folder) a.folder="\\\\LAI-SRV-009-BIS\\ekdocs";
+    if(!a.icon || a.icon==='NEW') a.icon=initialsFrom(a.name);
   });
   if(JSON.stringify(apps)!==before) await save();
   try{ const t=await window.storage.get('hub:theme'); if(t&&t.value) theme=t.value; }catch(e){}
@@ -242,7 +243,7 @@ function cardEdit(a,i){
     <div class="form">
       <div class="form-row">
         <div><label>Nome</label><input id="f-name-${i}" value="${a.name||''}"></div>
-        <div><label>Sigla</label><input id="f-icon-${i}" value="${a.icon||''}" maxlength="3"></div>
+        <div><label>Sigla (auto)</label><input id="f-icon-${i}" value="${a.icon||''}" maxlength="3" placeholder="da nome"></div>
       </div>
       <div class="form-row">
         <div><label>Colore</label><input id="f-color-${i}" type="color" value="${a.color||'#5b8def'}"></div>
@@ -283,14 +284,22 @@ window.deleteCard=async(i)=>{
   apps.splice(i,1); editIndex=-1; await save(); render(); toast('App eliminata');
 };
 window.addCard=async()=>{
-  apps.push({name:"Nuova app",icon:"NEW",color:"#5b8def",stato:"",kind:"web",url:"",beta:"",folder:"",git:""});
+  apps.push({name:"Nuova app",icon:"",color:"#5b8def",stato:"",kind:"web",url:"",beta:"",folder:"",git:""});
   editIndex=apps.length-1; await save(); render();
   document.querySelectorAll('.card')[editIndex].scrollIntoView({behavior:'smooth',block:'center'});
 };
+function initialsFrom(name){
+  const words=(name||'').replace(/[^\p{L}\p{N} ]/gu,' ').trim().split(/\s+/).filter(Boolean);
+  if(!words.length) return "APP";
+  if(words.length===1) return words[0].slice(0,2).toUpperCase();
+  return (words[0][0]+words[1][0]).toUpperCase();
+}
 window.saveCard=async(i)=>{
   const g=id=>document.getElementById(id+'-'+i).value;
   const prev=apps[i];
-  apps[i]={name:g('f-name'),icon:g('f-icon'),color:g('f-color'),stato:g('f-stato'),
+  let icon=g('f-icon').trim();
+  if(!icon) icon=initialsFrom(g('f-name'));
+  apps[i]={name:g('f-name'),icon:icon,color:g('f-color'),stato:g('f-stato'),
     kind:prev.kind||'web',url:g('f-url'),beta:g('f-beta'),folder:g('f-folder'),git:g('f-git')};
   editIndex=-1; await save(); render(); toast('Scheda salvata');
 };
